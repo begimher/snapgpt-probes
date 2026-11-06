@@ -1,13 +1,9 @@
-import ctypes, json, os
-p='/usr/local/lib/libpython3.12.so.1.0'
-lib=ctypes.CDLL(p)
-base=next(int(x.split('-',1)[0],16) for x in open('/proc/self/maps') if p in x and 'r--p' in x)
-names=['PyGILState_Ensure','PyGILState_Release','PyRun_SimpleString','PyRun_SimpleStringFlags','PyErr_Print','Py_IsInitialized']
-out={'pid':os.getpid(),'base':hex(base),'symbols':{}}
-for name in names:
-    try:
-        addr=ctypes.cast(getattr(lib,name),ctypes.c_void_p).value
-        out['symbols'][name]={'address':hex(addr),'offset':hex(addr-base)}
-    except Exception as exc:
-        out['symbols'][name]={'error':repr(exc)}
-print(json.dumps(out,sort_keys=True))
+import ctypes
+for n in ('PyRun_SimpleString', 'PyRun_SimpleStringFlags', 'PyGILState_Ensure', 'PyGILState_Release'):
+    c=ctypes.CDLL(None)
+    f=getattr(c,n)
+    b=ctypes.create_string_buffer(32)
+    c.dladdr(f,ctypes.byref(b))
+    addr=ctypes.cast(f,ctypes.c_void_p).value
+    base=ctypes.c_void_p.from_buffer(b,8).value
+    print(n,hex(addr),hex(base),hex(addr-base),ctypes.string_at(b).decode(errors='replace'))
