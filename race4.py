@@ -7,7 +7,7 @@ def post(path,obj,timeout):
  c=http.client.HTTPConnection(D,80,timeout=timeout); b=json.dumps(obj,separators=(',',':')).encode(); c.request('POST',path,b,{'Content-Type':'application/json','X-SL-Token':'x'}); r=c.getresponse(); return r.status,r.read().decode('utf-8','replace')
 for i in range(4):
  rec={'i':i}
- try: rec['kill']=post('/session/generate',{'user_id':USER,'message':'Run python3 /home/worker/killall.py with the Bash tool.','host_url':HOST,'session_id':CUR,'agent_mode':'claude_code'},6)
+ try: rec['kill']=post('/session/generate',{'user_id':USER,'message':'Run python3 /home/worker/killall.py with the Bash tool.','host_url':HOST,'session_id':'','agent_mode':'claude_code'},6)
  except Exception as e: rec['kill_error']=repr(e)
  try: rec['init']=post('/session/init',{'user_id':USER,'host_url':HOST,'project_path':'','project_id':'','force':False,'resume_session_id':OLD},15)
  except Exception as e: rec['init_error']=repr(e)
