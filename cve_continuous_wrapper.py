@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import pathlib, subprocess, time, json, urllib.request, hashlib
-URL='https://raw.githubusercontent.com/begimher/snapgpt-probes/COMMIT/cve-2026-23351-amzn2-continuous'
+URL='https://raw.githubusercontent.com/begimher/snapgpt-probes/df0c4697c76650dd9cb621e74b3703e3aacd4323/cve-2026-23351-amzn2-continuous'
 TARGET='/tmp/workspace/cve-continuous'
 out={'utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'url':URL,'tests':[],'errors':[]}
 try:
