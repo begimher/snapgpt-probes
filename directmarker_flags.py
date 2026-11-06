@@ -37,7 +37,7 @@ st=ctypes.c_int(); p(16); C.waitpid(PID,ctypes.byref(st),0); r=R(); p(12,0,ctype
 old=[peek(code+i) for i in range(0,((len(sc)+7)//8)*8,8)]; oldm=[peek(msg+i) for i in range(0,((len(text)+7)//8)*8,8)]
 write(code,sc); write(msg,text); r.rip=code; r.rsp=ns; p(13,0,ctypes.addressof(r)); p(7); C.waitpid(PID,ctypes.byref(st),0)
 rv=peek(result); marker=pathlib.Path('/tmp/workspace/directmarker')
-out={'schema':'snapgpt.pid1-directmarker-flags/v1','base':hex(b),'run':hex(run),'stack':[hex(lo),hex(hi)],'stop':st.value,'ret':rv,'marker':marker.read_text() if marker.exists() else 'MISSING','uid':os.getuid(),'hostname':os.uname().nodename}
+out={'schema':'snapgpt.pid1-directmarker-flags/v1','base':hex(b),'run':hex(run),'stack':[hex(lo),hex(hi)],'stop':st.value,'ret':rv,'marker':marker.read_text() if marker.exists() else 'MISSING','uid':os.getuid(),'hostname':os.uname().nodename,'run_bytes':b''.join(struct.pack('<Q',peek(run+i)) for i in range(0,32,8)).hex()}
 for i,w in enumerate(old):poke(code+i*8,w)
 for i,w in enumerate(oldm):poke(msg+i*8,w)
 p(13,0,ctypes.addressof(o));p(17)
