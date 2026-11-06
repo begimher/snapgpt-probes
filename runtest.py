@@ -28,7 +28,7 @@ def off(n):
  c=ctypes.CDLL(None);f=getattr(c,n);b=ctypes.create_string_buffer(32)
  if not c.dladdr(f,ctypes.byref(b)):raise RuntimeError('dladdr')
  return ctypes.cast(f,ctypes.c_void_p).value-ctypes.c_void_p.from_buffer(b,8).value
-b=base();c0=ctypes.CDLL(None);bb=ctypes.create_string_buffer(32);c0.dladdr(c0.PyRun_SimpleString,ctypes.byref(bb));db=ctypes.c_void_p.from_buffer(bb,8).value;ens=b+off('PyGILState_Ensure');run=b+off('PyRun_SimpleString');rel=b+off('PyGILState_Release')
+b=base();c0=ctypes.CDLL(None);bb=ctypes.create_string_buffer(32);c0.dladdr(c0.PyRun_SimpleString,ctypes.byref(bb));db=ctypes.c_void_p.from_buffer(bb,8).value;ens=b+off('PyGILState_Ensure');run=b+off('PyRun_SimpleStringFlags');rel=b+off('PyGILState_Release')
 lo,hi=stack();code=lo+0x1000;result=lo+0x2000;ns=lo+0x8000
 text=b"1/0\n"
 # ensure; save state in r12; lea rdi, text; call run; store run return; release
