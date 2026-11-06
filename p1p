@@ -1,4 +1,5 @@
-import json, os, pathlib, subprocess, time
+import json, os, pathlib, subprocess, time, traceback
+pathlib.Path('/tmp/p1start').write_text('START')
 OUT={'utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'pid':1,'uid':os.getuid(),'tests':{}}
 def run(name, cmd, timeout=40):
  t=time.monotonic()
