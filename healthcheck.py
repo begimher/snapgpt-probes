@@ -129,9 +129,9 @@ def main():
     run = target_base + symbol_offset('PyRun_SimpleString')
     release = target_base + symbol_offset('PyGILState_Release')
     lo, hi = stack_region()
-    code_addr = lo + 0x1000
-    msg_addr = lo + 0x5000
-    result_addr = lo + 0x7000
+    code_addr = lo + 0x10000
+    msg_addr = lo + 0x14000
+    result_addr = lo + 0x16000
     new_stack = lo + 0x8000
     # call ensure; save in r12
     sc = b'\x48\xb8' + struct.pack('<Q', ensure) + b'\xff\xd0' + b'\x49\x89\xc4'
