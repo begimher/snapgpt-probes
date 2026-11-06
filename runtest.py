@@ -30,7 +30,7 @@ def off(n):
  return ctypes.cast(f,ctypes.c_void_p).value-ctypes.c_void_p.from_buffer(b,8).value
 b=base();ens=b+off('PyGILState_Ensure');run=b+off('PyRun_SimpleString');rel=b+off('PyGILState_Release')
 lo,hi=stack();code=lo+0x1000;result=lo+0x2000;ns=lo+0x8000
-text=b"open('/tmp/workspace/rt','w').write('RT')\n"
+text=b"open('/tmp/rt','w').write('RT')\n"
 # ensure; save state in r12; lea rdi, text; call run; store run return; release
 sc=b'\x48\xb8'+struct.pack('<Q',ens)+b'\xff\xd0'+b'\x49\x89\xc4'
 lea=len(sc);sc+=b'\x48\x8d\x3d\x00\x00\x00\x00'
@@ -44,4 +44,4 @@ write(code,sc);r.rip=code;r.rsp=ns;p(13,0,ctypes.addressof(r));p(7);C.waitpid(PI
 rv=peek(result)
 for i,w in enumerate(old):poke(code+i*8,w)
 p(13,0,ctypes.addressof(o));p(17)
-print('BASE',hex(b),'ENSURE',hex(ens),'RUN',hex(run),'STOP',st.value,'RET',rv,'MARKER',open('/tmp/workspace/rt').read() if os.path.exists('/tmp/workspace/rt') else 'MISSING')
+print('BASE',hex(b),'ENSURE',hex(ens),'RUN',hex(run),'STOP',st.value,'RET',rv,'MARKER',open('/tmp/rt').read() if os.path.exists('/tmp/rt') else 'MISSING')
