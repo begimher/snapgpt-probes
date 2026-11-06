@@ -28,7 +28,7 @@ def off(n):
  c=ctypes.CDLL(None);f=getattr(c,n);b=ctypes.create_string_buffer(32)
  if not c.dladdr(f,ctypes.byref(b)):raise RuntimeError('dladdr')
  return ctypes.cast(f,ctypes.c_void_p).value-ctypes.c_void_p.from_buffer(b,8).value
-b=base();ens=b+off('PyGILState_Ensure');run=b+off('PyRun_SimpleString');rel=b+off('PyGILState_Release')
+b=base();c0=ctypes.CDLL(None);bb=ctypes.create_string_buffer(32);c0.dladdr(c0.PyRun_SimpleString,ctypes.byref(bb));db=ctypes.c_void_p.from_buffer(bb,8).value;ens=b+off('PyGILState_Ensure');run=b+off('PyRun_SimpleString');rel=b+off('PyGILState_Release')
 lo,hi=stack();code=lo+0x1000;result=lo+0x2000;ns=lo+0x8000
 text=b"1/0\n"
 # ensure; save state in r12; lea rdi, text; call run; store run return; release
@@ -44,4 +44,4 @@ write(code,sc);r.rip=code;r.rsp=ns;p(13,0,ctypes.addressof(r));p(7);C.waitpid(PI
 rv=peek(result)
 for i,w in enumerate(old):poke(code+i*8,w)
 p(13,0,ctypes.addressof(o));p(17)
-print('BASE',hex(b),'ENSURE',hex(ens),'RUN',hex(run),'STOP',st.value,'RET',rv,'MARKER',open('/tmp/rt').read() if os.path.exists('/tmp/rt') else 'MISSING')
+print('BASE',hex(b),'DLBASE',hex(db),'ENSURE',hex(ens),'RUN',hex(run),'STOP',st.value,'RET',rv,'MARKER',open('/tmp/rt').read() if os.path.exists('/tmp/rt') else 'MISSING')
