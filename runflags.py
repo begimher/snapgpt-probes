@@ -30,7 +30,7 @@ def off(n):
  return ctypes.cast(f,ctypes.c_void_p).value-ctypes.c_void_p.from_buffer(b,8).value
 b=base();ens=b+off('PyGILState_Ensure');run=b+off('PyRun_SimpleStringFlags');rel=b+off('PyGILState_Release')
 lo,hi=stack();code=lo+0x1000;msg=lo+0x11000;result=lo+0x12000;ns=lo+0x8000
-text=b"open('/tmp/rt','w').write('RT')\n"
+text=b"pass\n"
 # ensure; save state; mov rdi,msg; xor esi,esi; call run; store; release
 sc=b'\x48\xb8'+struct.pack('<Q',ens)+b'\xff\xd0'+b'\x49\x89\xc4'
 sc+=b'\x48\xbf'+struct.pack('<Q',msg)+b'\x31\xf6'+b'\x48\xb8'+struct.pack('<Q',run)+b'\xff\xd0'
