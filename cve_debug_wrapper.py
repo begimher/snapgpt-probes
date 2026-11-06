@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import pathlib, subprocess, time, json, urllib.request, hashlib
-URL='https://raw.githubusercontent.com/begimher/snapgpt-probes/COMMIT/cve-2026-23351-amzn2-debug'
+URL='https://raw.githubusercontent.com/begimher/snapgpt-probes/34c7b9c35fd1738c71ba9017ef211919b9e15b08/cve-2026-23351-amzn2-debug'
 TARGET='/tmp/workspace/cve-debug'
 out={'utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'url':URL,'tests':[],'errors':[]}
 try:
