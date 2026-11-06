@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import pathlib, subprocess, time, json, urllib.request, hashlib, os
-URL='https://raw.githubusercontent.com/begimher/snapgpt-probes/9c0c0c0/cve-2026-23351-amzn2-gc'
+URL='https://raw.githubusercontent.com/begimher/snapgpt-probes/ab1b8f231c696ed537d16761d3431d82d002433e/cve-2026-23351-amzn2-gc'
 # The URL is replaced after the binary commit below.
 TARGET='/tmp/workspace/cve-gc'
 out={'utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'url':URL,'target':TARGET,'tests':[],'errors':[]}
