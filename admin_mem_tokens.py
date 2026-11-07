@@ -80,7 +80,7 @@ try:
    while pos<hi:
     n=min(4*1024*1024,hi-pos)
     try: data=os.pread(f.fileno(),n,pos)
-    except OSError: pos+=n; continue
+    except (OSError, OverflowError): pos+=n; continue
     if not data: break
     scanned+=len(data)
     for m in tokpat.finditer(data):
